@@ -32,9 +32,9 @@ class EntitiesFactory implements EntitiesFactoryInterface
     {
         $factory = $this->getFactory($entity);
 
-        $entityData = $this->getEntityData($factory, $data);
+        $entity = $this->createEntity($entity);
 
-        $entity = $this->createEntity($entity, $entityData);
+        $this->populateEntity($entity, $factory, $data);
 
         if ($persist) {
             $this->container
@@ -66,33 +66,29 @@ class EntitiesFactory implements EntitiesFactoryInterface
         return $this->factories[$entity];
     }
 
-    private function getEntityData(callable $factory, $data = null): array
+    private function createEntity(string $entity): object
+    {
+        return new $entity();
+    }
+
+    private function populateEntity(object $entity, callable $factory, $data = null): void
     {
         $entityData = $factory($this->faker);
 
         if (is_array($data)) {
             $entityData = array_merge($entityData, $data);
-        } else if (is_callable($data)) {
-            $entityData = $data($entityData);
-        } else if (!is_null($data)) {
-            throw new \InvalidArgumentException('Invalid data type for factory, must be array or callable');
         }
 
-        return $entityData;
-    }
-
-    private function createEntity(string $entity, array $data): object
-    {
-        $entity = new $entity;
-
-        foreach ($data as $key => $value) {
+        foreach ($entityData as $key => $value) {
             $setter = $this->getKeySetter($key);
             if (method_exists($entity, $setter)) {
                 $entity->$setter($value);
             }
         }
 
-        return $entity;
+        if (is_callable($data)) {
+            $data($entity, $this->faker);
+        }
     }
 
     private function getKeySetter($key): string
